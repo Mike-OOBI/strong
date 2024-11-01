@@ -1,0 +1,80 @@
+{
+    "id": "mock-lookup-flow",
+    "label": "Mock Credential Lookup",
+    "nodes": [
+        {
+            "id": "httpIn",
+            "type": "http in",
+            "z": "mock-lookup-flow",
+            "name": "API Endpoint",
+            "url": "/api/lookup",
+            "method": "post",
+            "upload": false,
+            "swaggerDoc": "",
+            "x": 120,
+            "y": 120,
+            "wires": [["validateRequest"]]
+        },
+        {
+            "id": "validateRequest",
+            "type": "function",
+            "z": "mock-lookup-flow",
+            "name": "Validate Request",
+            "func": "const validCreds = {\n    '406': { uses: 5, valid: true },\n    '407': { uses: 3, valid: true },\n    '408': { uses: 0, valid: true },\n    '412': { uses: 2, valid: true },\n    '413': { uses: 1, valid: true },\n    '414': { uses: 0, valid: true },\n    '415': { uses: 4, valid: true },\n    '500': { uses: 0, valid: false }\n};\n\nconst visualId = msg.payload.Envelope?.Body?.[0]?.TicketLookup?.[0]?.VisualID?.[0];\n\nif (!visualId) {\n    msg.statusCode = 400;\n    msg.payload = {\n        error: 'Invalid request format',\n        status: 'error'\n    };\n    return [null, msg];\n}\n\nconst credential = validCreds[visualId];\n\nif (!credential) {\n    msg.statusCode = 404;\n    msg.payload = {\n        error: 'Credential not found',\n        status: 'error'\n    };\n    return [null, msg];\n}\n\nif (!credential.valid) {\n    msg.statusCode = 403;\n    msg.payload = {\n        error: 'Credential expired',\n        status: 'error'\n    };\n    return [null, msg];\n}\n\nmsg.payload = {\n    status: 'success',\n    credential: {\n        visualId: visualId,\n        uses: credential.uses,\n        valid: credential.valid\n    }\n};\n\nreturn [msg, null];",
+            "outputs": 2,
+            "x": 320,
+            "y": 120,
+            "wires": [["processSuccess"], ["processError"]]
+        },
+        {
+            "id": "processSuccess",
+            "type": "function",
+            "z": "mock-lookup-flow",
+            "name": "Process Success",
+            "func": "msg.payload = {\n    status: 'success',\n    data: msg.payload\n};\nmsg.statusCode = 200;\nreturn msg;",
+            "outputs": 1,
+            "x": 520,
+            "y": 80,
+            "wires": [["httpResponse"]]
+        },
+        {
+            "id": "processError",
+            "type": "function",
+            "z": "mock-lookup-flow",
+            "name": "Process Error",
+            "func": "// Error response is already formatted\nreturn msg;",
+            "outputs": 1,
+            "x": 520,
+            "y": 160,
+            "wires": [["httpResponse"]]
+        },
+        {
+            "id": "httpResponse",
+            "type": "http response",
+            "z": "mock-lookup-flow",
+            "name": "HTTP Response",
+            "statusCode": "",
+            "headers": {},
+            "x": 720,
+            "y": 120,
+            "wires": []
+        },
+        {
+            "id": "debug",
+            "type": "debug",
+            "z": "mock-lookup-flow",
+            "name": "Debug",
+            "active": true,
+            "tosidebar": true,
+            "console": false,
+            "tostatus": false,
+            "complete": "payload",
+            "targetType": "msg",
+            "statusVal": "",
+            "statusType": "auto",
+            "x": 720,
+            "y": 180,
+            "wires": []
+        }
+    ]
+}
